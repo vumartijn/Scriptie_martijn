@@ -25,11 +25,13 @@ model.Energy = pyo.Param(model.T, initialize=energy_dict)
 
 H_start = 0.4
 M = 2
-STORAGE_MAX = 0.5 + random.uniform(0, 0.5)
+STORAGE_MAX = 0.5
+A = 1e6
+dt = 3600
 
 # --- Variables ---
 model.Q_orifice = pyo.Var(model.T, domain=pyo.NonNegativeReals)
-model.Q_pump = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, 4.9 + random.uniform(0, 0.1)))
+model.Q_pump = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, 7))
 model.x = pyo.Var(model.T, domain=pyo.Binary)
 model.H_storage = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, STORAGE_MAX))
 
@@ -38,7 +40,8 @@ def storage_balance_rule(model, t):
     if t == 1:
         return model.H_storage[t] == H_start
     else:
-        return model.H_storage[t] == model.H_storage[t-1] + model.Q_in[t] - model.Q_pump[t] - model.Q_orifice[t]
+        return (A * (model.H_storage[t] - model.H_storage[t - 1])
+                == dt * (model.Q_in[t - 1] - model.Q_pump[t - 1] - model.Q_orifice[t - 1]))
 model.storage_balance = pyo.Constraint(model.T, rule=storage_balance_rule)
 
 def only_downhill_rule1(model, t):
@@ -70,10 +73,11 @@ def torricelli_law_rule(model, t):
 model.torricelli_law = pyo.Constraint(model.T, rule=torricelli_law_rule)
 
 # --- Objective ---
-model.obj = pyo.Objective(expr=sum(model.Q_pump[t] * model.Energy[t] for t in model.T), sense=pyo.minimize)
+model.obj = pyo.Objective(expr=sum(model.Q_pump[t] * dt for t in model.T), sense=pyo.minimize)
 
 solver = pyo.SolverFactory('gurobi') 
 results = solver.solve(model, tee=True, symbolic_solver_labels=True)
+# For mindtpy: results = solver.solve(model, mip_solver="glpk", nlp_solver="ipopt", tee=True, strategy="OA")
 
 if results.solver.termination_condition == pyo.TerminationCondition.infeasible:
     solver.options['ResultFile'] = 'example_model_iis.ilp'

@@ -1,79 +1,13 @@
 \ Model obj_copy
 \ LP format - for model browsing. Use MPS format to capture full model detail.
-\ Signature: 0xda75289bc3a78979
+\ Signature: 0xeeaa5811fa3db980
 Minimize
  
 Subject To
- c_e_storage_balance(3)_: Q_pump(3) - H_storage(2) + H_storage(3)
-   + Q_orifice(3) = 5
- c_e_storage_balance(4)_: Q_pump(4) - H_storage(3) + H_storage(4)
-   + Q_orifice(4) = 5
- c_e_storage_balance(5)_: Q_pump(5) - H_storage(4) + H_storage(5)
-   + Q_orifice(5) = 5
- c_e_storage_balance(6)_: Q_pump(6) - H_storage(5) + H_storage(6)
-   + Q_orifice(6) = 5
- c_e_storage_balance(7)_: Q_pump(7) - H_storage(6) + H_storage(7)
-   + Q_orifice(7) = 5
- c_e_storage_balance(8)_: Q_pump(8) - H_storage(7) + H_storage(8)
-   + Q_orifice(8) = 5
- c_e_storage_balance(9)_: Q_pump(9) - H_storage(8) + H_storage(9)
-   + Q_orifice(9) = 5
- c_e_storage_balance(10)_: Q_pump(10) - H_storage(9) + H_storage(10)
-   + Q_orifice(10) = 5
- c_e_storage_balance(11)_: Q_pump(11) - H_storage(10) + H_storage(11)
-   + Q_orifice(11) = 5
- c_u_only_downhill2(3)_: Q_orifice(3) - 10 x(3) <= 0
- c_u_only_downhill2(4)_: Q_orifice(4) - 10 x(4) <= 0
- c_u_only_downhill2(5)_: Q_orifice(5) - 10 x(5) <= 0
- c_u_only_downhill2(6)_: Q_orifice(6) - 10 x(6) <= 0
- c_u_only_downhill2(7)_: Q_orifice(7) - 10 x(7) <= 0
- c_u_only_downhill2(8)_: Q_orifice(8) - 10 x(8) <= 0
- c_u_only_downhill2(9)_: Q_orifice(9) - 10 x(9) <= 0
- c_u_only_downhill2(10)_: Q_orifice(10) - 10 x(10) <= 0
- c_u_only_downhill2(11)_: Q_orifice(11) - 10 x(11) <= 0
- c_u_fix_downhill1(4)_: - H_storage(4) + 2 x(4) <= 1.7
- c_u_fix_downhill1(5)_: - H_storage(5) + 2 x(5) <= 1.6
- c_u_fix_downhill1(7)_: - H_storage(7) + 2 x(7) <= 1.4
- c_u_torricelli_law(3)_: - H_storage(3) + 2 x(3) + [
-   0.00885770975056689 Q_orifice(3) ^2 ] <= 1.8
- c_u_torricelli_law(6)_: - H_storage(6) + 2 x(6) + [
-   0.00885770975056689 Q_orifice(6) ^2 ] <= 1.5
- c_u_torricelli_law(8)_: - H_storage(8) + 2 x(8) + [
-   0.00885770975056689 Q_orifice(8) ^2 ] <= 1.3
- c_u_torricelli_law(9)_: - H_storage(9) + 2 x(9) + [
-   0.00885770975056689 Q_orifice(9) ^2 ] <= 1.2
- c_u_torricelli_law(10)_: - H_storage(10) + 2 x(10) + [
-   0.00885770975056689 Q_orifice(10) ^2 ] <= 1.1
- c_u_torricelli_law(11)_: - H_storage(11) + 2 x(11) + [
-   0.00885770975056689 Q_orifice(11) ^2 ] <= 1
+ c_e_storage_balance(1)_: H_storage(1) = 400000
+ c_u_fix_downhill2(1)_: H_storage(1) - 2 x(1) <= 0
 Bounds
- -infinity <= Q_pump(3) <= 4.902501075522267
- -infinity <= Q_pump(4) <= 4.902501075522267
- -infinity <= Q_pump(5) <= 4.902501075522267
- -infinity <= Q_pump(6) <= 4.902501075522267
- -infinity <= Q_pump(7) <= 4.902501075522267
- -infinity <= Q_pump(8) <= 4.902501075522267
- -infinity <= Q_pump(9) <= 4.902501075522267
- -infinity <= Q_pump(10) <= 4.902501075522267
- -infinity <= Q_pump(11) <= 4.902501075522267
- H_storage(3) free
- Q_orifice(3) free
- H_storage(4) free
- Q_orifice(4) free
- H_storage(5) free
- Q_orifice(5) free
- H_storage(6) free
- Q_orifice(6) free
- H_storage(7) free
- Q_orifice(7) free
- H_storage(8) free
- Q_orifice(8) free
- H_storage(9) free
- Q_orifice(9) free
- H_storage(10) free
- Q_orifice(10) free
- -infinity <= H_storage(11) <= 0.8197133992289418
- Q_orifice(11) free
+ H_storage(1) free
 Binaries
- x(3) x(4) x(5) x(6) x(7) x(8) x(9) x(10) x(11)
+ x(1)
 End

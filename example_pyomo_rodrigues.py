@@ -221,7 +221,7 @@ def get_solver_executable(solver_name):
     return None
 
 
-def solve_model(model, solver_name="bonmin", tee=True):
+def solve_model(model, solver_name="couenne", tee=True):
     """
     Solve the mixed-integer nonlinear optimization problem.
 
@@ -330,7 +330,7 @@ if __name__ == "__main__":
 
     print("\nSolving with BONMIN...")
     try:
-        results = solve_model(model, solver_name="bonmin", tee=True)
+        results = solve_model(model, solver_name="mindtpy", tee=True)
         print(f"\nSolver status: {results.solver.status}")
         print(f"Termination condition: {results.solver.termination_condition}")
 
@@ -364,3 +364,4 @@ if __name__ == "__main__":
     except RuntimeError as e:
         print(f"\nSolver error: {e}")
         print("Try installing BONMIN or use 'mindtpy' with GLPK and IPOPT.")
+
