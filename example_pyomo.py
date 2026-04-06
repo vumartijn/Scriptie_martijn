@@ -23,15 +23,16 @@ model.Q_in = pyo.Param(model.T, initialize=q_in_dict)
 energy_dict = {i+1: val for i, val in enumerate(time_series["Energy"][:21])}
 model.Energy = pyo.Param(model.T, initialize=energy_dict)
 
-H_start = 0.4
 M = 2
-STORAGE_MAX = 0.5
+STORAGE_MAX = 0.4 + random.uniform(0, 0.2)
+H_start = STORAGE_MAX - 0.1
 A = 1e6
 dt = 3600
+PUMP_MAX = 3 - random.uniform(0, 1)
 
 # --- Variables ---
 model.Q_orifice = pyo.Var(model.T, domain=pyo.NonNegativeReals)
-model.Q_pump = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, 7))
+model.Q_pump = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, PUMP_MAX))
 model.x = pyo.Var(model.T, domain=pyo.Binary)
 model.H_storage = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, STORAGE_MAX))
 
