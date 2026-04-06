@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Feb 13 20:18:37 2026
+
+@author: martijnkrikke
+"""
+
+from datetime import datetime
+
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+from example_pyomo import STORAGE_MAX
+
+# Import Data
+data_path = "/Users/martijnkrikke/Documents/Scriptie/mixed_integer/output_results.csv"
+results = np.genfromtxt(
+    data_path, delimiter=",", encoding=None, dtype=None, names=True, case_sensitive="lower"
+)
+
+# Get times as datetime objects
+times = [datetime.strptime(x, "%Y-%m-%d %H:%M:%S") for x in results["time"]]
+
+# Generate Plot
+fig, axarr = plt.subplots(2, sharex=True)
+axarr[0].set_title("Water Level and Discharge")
+
+# Upper subplot
+axarr[0].set_ylabel("Water Level [m]")
+axarr[0].plot(times, results["storage_level"], label="Storage", linewidth=2, color="b")
+axarr[0].plot(times, results["sea_level"], label="Sea", linewidth=2, color="m")
+axarr[0].plot(times, STORAGE_MAX * np.ones_like(times), label="Storage Max", linewidth=2, color="r", linestyle="--",)
+
+# Lower Subplot
+axarr[1].set_ylabel("Flow Rate [m³/s]")
+# add dots to clarify where the decision variables are defined:
+axarr[1].scatter(times, results["q_orifice"], linewidth=1, color="g")
+axarr[1].scatter(times, results["q_pump"], linewidth=1, color="r")
+# add horizontal lines to the left of these dots, to indicate that the value is attained over an
+# entire timestep:
+axarr[1].step(times, results["q_orifice"], linewidth=2, where="pre", label="Orifice", color="g")
+axarr[1].step(times, results["q_pump"], linewidth=1, where="pre", label="Pump", color="r")
+
+# Format bottom axis label
+axarr[-1].xaxis.set_major_formatter(mdates.DateFormatter("%H"))
+
+# Shrink margins
+fig.tight_layout()
+
+# Shrink each axis and put a legend to the right of the axis
+for i in range(len(axarr)):
+    box = axarr[i].get_position()
+    axarr[i].set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    axarr[i].legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
+
+plt.autoscale(enable=True, axis="x", tight=True)
+
+# Output Plot
+plt.show()
