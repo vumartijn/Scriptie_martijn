@@ -29,12 +29,15 @@ H_start = STORAGE_MAX - 0.1
 A = 1e6
 dt = 3600
 PUMP_MAX = 3 - random.uniform(0, 1)
+ORIFICE_MAX = 10
 
 # --- Variables ---
 model.Q_orifice = pyo.Var(model.T, domain=pyo.NonNegativeReals)
 model.Q_pump = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, PUMP_MAX))
 model.x = pyo.Var(model.T, domain=pyo.Binary)
 model.H_storage = pyo.Var(model.T, domain=pyo.NonNegativeReals, bounds=(0, STORAGE_MAX))
+
+
 
 # --- Constraints ---
 def storage_balance_rule(model, t):
@@ -46,11 +49,11 @@ def storage_balance_rule(model, t):
 model.storage_balance = pyo.Constraint(model.T, rule=storage_balance_rule)
 
 def only_downhill_rule1(model, t):
-    return model.Q_orifice[t] + (1 - model.x[t]) * 10 >= 0
+    return model.Q_orifice[t] + (1 - model.x[t]) * ORIFICE_MAX >= 0
 model.only_downhill1 = pyo.Constraint(model.T, rule=only_downhill_rule1)
 
 def only_downhill_rule2(model, t):
-    return model.Q_orifice[t] + (1 - model.x[t]) * 10  <= 10
+    return model.Q_orifice[t] + (1 - model.x[t]) * ORIFICE_MAX  <= ORIFICE_MAX
 model.only_downhill2 = pyo.Constraint(model.T, rule=only_downhill_rule2)
 
 def fix_downhill_rule1(model, t):
@@ -69,9 +72,9 @@ w = 3.0  # m       width of orifice
 d = 0.8  # m       hight of orifice
 C = 1.0  # none    orifice constant
 g = 9.8  # m/s^2   gravitational acceleration
-def torricelli_law_rule(model, t):
+def orifice_capacity_rule(model, t):
     return ((model.Q_orifice[t] / (w * C * d)) ** 2) / (2 * g) + model.H_sea[t] - model.H_storage[t] - (1 - model.x[t]) * M <= 0
-model.torricelli_law = pyo.Constraint(model.T, rule=torricelli_law_rule)
+model.orifice_capacity = pyo.Constraint(model.T, rule=orifice_capacity_rule)
 
 # --- Objective ---
 model.obj = pyo.Objective(expr=sum(model.Q_pump[t] * dt for t in model.T), sense=pyo.minimize)
