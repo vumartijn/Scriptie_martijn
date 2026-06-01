@@ -12,7 +12,7 @@ SEED = 43
 random.seed(SEED)
 # 1. Data inladen
 time_series = pd.read_csv('/Users/martijnkrikke/Documents/Scriptie/Scriptie_martijn/timeseries_import.csv')
-
+software = 'gurobi' # 'mindtpy' or 'gurobi'
 model = pyo.ConcreteModel()
 model.T = pyo.RangeSet(1, 21)
 
@@ -24,12 +24,13 @@ model.Q_in = pyo.Param(model.T, initialize=q_in_dict)
 energy_dict = {i+1: val for i, val in enumerate(time_series["Energy"][:21])}
 model.Energy = pyo.Param(model.T, initialize=energy_dict)
 
+
 M = 2
-STORAGE_MAX = 0.5 #+ random.uniform(0, 0.2)
-H_start = STORAGE_MAX - 0.1
+STORAGE_MAX = 0.5
+H_start = 0.4
 A = 1e6
 dt = 3600
-PUMP_MAX = 7 #- random.uniform(0, 1)
+PUMP_MAX = 2.0319520069769987369312502779
 ORIFICE_MAX = 10
 
 # --- Variables ---
@@ -80,9 +81,11 @@ model.orifice_capacity = pyo.Constraint(model.T, rule=orifice_capacity_rule)
 # --- Objective ---
 model.obj = pyo.Objective(expr=sum(model.Q_pump[t] * dt for t in model.T), sense=pyo.minimize)
 
-solver = pyo.SolverFactory('gurobi') 
-results = solver.solve(model, tee=True)
-# For mindtpy: results = solver.solve(model, mip_solver="glpk", nlp_solver="ipopt", tee=True, strategy="OA")
+solver = pyo.SolverFactory(software)
+if software == 'mindtpy':
+    results = solver.solve(model, mip_solver="glpk", nlp_solver="ipopt", tee=True, strategy="OA")
+elif software == 'gurobi':
+    results = solver.solve(model, tee=True)
 
 if results.solver.termination_condition == pyo.TerminationCondition.infeasible:
     solver.options['ResultFile'] = '/Users/martijnkrikke/Documents/Scriptie/Scriptie_martijn/ILP files/example_model_iis.ilp'
@@ -120,7 +123,7 @@ if results.solver.termination_condition == pyo.TerminationCondition.optimal:
     df_output.to_csv(output_path, index=False, date_format='%Y-%m-%d %H:%M:%S', float_format='%.6f') 
     
     print(df_output[["Q_orifice", "Q_pump", "is_downhill", "storage_level"]])
-
+    print(f"Objective Value (Total Energy Used): {pyo.value(model.obj)}")
 
 
 

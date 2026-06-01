@@ -11,7 +11,7 @@ from datetime import datetime
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
-from example_pyomo import STORAGE_MAX
+from example_pyomo import STORAGE_MAX, software
 
 # Import Data
 data_path = "/Users/martijnkrikke/Documents/Scriptie/Scriptie_martijn/output_results.csv"
@@ -24,7 +24,7 @@ times = [datetime.strptime(x, "%Y-%m-%d %H:%M:%S") for x in results["time"]]
 
 # Generate Plot
 fig, axarr = plt.subplots(2, sharex=True)
-axarr[0].set_title("Water Level and Discharge")
+axarr[0].set_title(f"Water Level and Discharge ({software})")
 
 # Upper subplot
 axarr[0].set_ylabel("Water Level [m]")
