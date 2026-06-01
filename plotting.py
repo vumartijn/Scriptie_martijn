@@ -14,7 +14,7 @@ import numpy as np
 from example_pyomo import STORAGE_MAX
 
 # Import Data
-data_path = "/Users/martijnkrikke/Documents/Scriptie/mixed_integer/output_results.csv"
+data_path = "/Users/martijnkrikke/Documents/Scriptie/Scriptie_martijn/output_results.csv"
 results = np.genfromtxt(
     data_path, delimiter=",", encoding=None, dtype=None, names=True, case_sensitive="lower"
 )
