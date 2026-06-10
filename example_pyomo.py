@@ -12,7 +12,7 @@ SEED = 43
 random.seed(SEED)
 # 1. Data inladen
 time_series = pd.read_csv('/Users/martijnkrikke/Documents/Scriptie/Scriptie_martijn/timeseries_import.csv')
-software = 'gurobi' # 'mindtpy' or 'gurobi'
+software = 'mindtpy' # 'mindtpy' or 'gurobi'
 model = pyo.ConcreteModel()
 model.T = pyo.RangeSet(1, 21)
 
@@ -30,7 +30,7 @@ STORAGE_MAX = 0.5
 H_start = 0.4
 A = 1e6
 dt = 3600
-PUMP_MAX = 2.0319520069769987369312502779
+PUMP_MAX = 2.1
 ORIFICE_MAX = 10
 
 # --- Variables ---
