@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+AR(1) recursion on the log scale for the inflow Q_t:
+
+    Y_t = mu_Y + phi * (Y_{t-1} - mu_Y) + eps_t,   eps_t ~ N(0, sigma_eps^2)
+    Q_t = exp(Y_t)
+
+Q_t is then log-normal with sigma_Y^2 = sigma_eps^2 / (1 - phi^2), and
+mu_Y is chosen so that E[Q_t] = Q_MEAN exactly:
+
+    mu_Y = ln(Q_MEAN) - 0.5 * sigma_Y^2
+
+Simulates N_SIMS independent trajectories of length T and plots them.
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+SEED = 42
+T = 20            # number of time steps
+N_SIMS = 100        # number of simulated trajectories
+
+PHI = 0.9           # AR(1) persistence
+SIGMA_EPS = 0.1     # innovation std on the log scale
+Q_MEAN = 5.0        # target E[Q_t]
+
+SIGMA_Y2 = SIGMA_EPS ** 2 / (1.0 - PHI ** 2)
+MU_Y = np.log(Q_MEAN) - 0.5 * SIGMA_Y2
+
+
+def simulate_ar1_lognormal(n_sims, T, phi, mu_y, sigma_eps, seed=SEED):
+    """Return an (n_sims, T) array of Q_t trajectories."""
+    rng = np.random.default_rng(seed)
+    Y = np.empty((n_sims, T))
+    # start each trajectory at its stationary mean
+    Y[:, 0] = mu_y
+    eps = rng.normal(0.0, sigma_eps, size=(n_sims, T))
+    for t in range(1, T):
+        Y[:, t] = mu_y + phi * (Y[:, t - 1] - mu_y) + eps[:, t]
+    return np.exp(Y)
+
+
+if __name__ == '__main__':
+    Q = simulate_ar1_lognormal(N_SIMS, T, PHI, MU_Y, SIGMA_EPS)
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    time = np.arange(T)
+    for i in range(N_SIMS):
+        ax.plot(time, Q[i], color='#2a78d6', lw=0.6, alpha=0.15)
+    ax.plot(time, Q.mean(axis=0), color='#eda100', lw=2,
+             label='sample mean across trajectories')
+    ax.axhline(Q_MEAN, color='#0b0b0b', lw=1, ls='--',
+               label=f'target E[Q] = {Q_MEAN}')
+
+    ax.set_xlabel('time step t')
+    ax.set_ylabel(r'$Q_t$')
+    ax.set_title(f'{N_SIMS} simulated AR(1) log-normal trajectories '
+                 f'(phi={PHI}, sigma_eps={SIGMA_EPS})')
+    ax.legend(frameon=False)
+    ax.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+    out_path = '/Users/martijnkrikke/Documents/Scriptie/Scriptie_martijn/ar1_lognormal_simulation.png'
+    fig.savefig(out_path, dpi=150)
+    plt.show()
