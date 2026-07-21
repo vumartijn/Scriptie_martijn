@@ -14,7 +14,9 @@ so Q_in[t] is log-normal with E[Q_in[t]] = 5 m3/s (mu_Y is calibrated for
 this), and we look for a fixed (here-and-now) pumping schedule Q_pump that
 minimises
 
-    E[ total pumped water  +  PENALTY * storage-bound violations ].
+    E[ total pumped water
+       + SPILL_COST    * water lost over the emergency weir
+       + TERMINAL_COST * water left in the basin at the end of the horizon ].
 
 This expectation has no closed form, so the schedule is found with
 Simultaneous Perturbation Stochastic Approximation (SPSA, Spall 1992):
@@ -30,8 +32,15 @@ Modelling changes w.r.t. the MIP:
     gravity at full capacity whenever the storage level is above sea level.
     (That is what the MIP solution does anyway - gravity drainage is free -
     so the binary x[t] is replaced by the level comparison itself.)
-  * The hard bounds 0 <= H_storage <= STORAGE_MAX become a penalty, because
-    with random inflow a fixed schedule cannot guarantee them almost surely.
+  * The upper bound H_storage <= STORAGE_MAX is enforced by an emergency weir
+    instead of by the solver: with random inflow no fixed schedule can hold
+    the level almost surely, so everything above the crest leaves the system
+    as spill and is charged ONCE, at SPILL_COST per m3. Mass balance is
+    therefore closed - excess water does not sit in the basin being re-charged
+    every hour, which would make a flood cheaper the later it starts.
+  * Water still in the basin above H_start at the end of the horizon is
+    charged at what pumping it out would have cost, so the schedule cannot
+    game the boundary by simply stopping.
 """
 
 import numpy as np
@@ -65,9 +74,10 @@ g = 9.8   # m/s^2   gravitational acceleration
 # 2. Stochastic inflow and the simulation model
 # ------------------------------------------------------------------
 PHI = 0.8                             # AR(1) persistence (log scale)
-SIGMA_EPS = 0.3                       # innovation std (log scale)
+SIGMA_EPS = 0.15                       # innovation std (log scale)
 Q_MEAN = 5.0                          # target E[Q_in[t]]
-PENALTY = 1                      # violation water is 10x as expensive as pumped water
+SPILL_COST = 5.0                     # m3 of pumping worth spending to avoid 1 m3 of spill
+TERMINAL_COST = 1.0                   # leftover water charged at exactly the pumping rate
 
 SIGMA_Y2 = SIGMA_EPS ** 2 / (1.0 - PHI ** 2)
 MU_Y = np.log(Q_MEAN) - 0.5 * SIGMA_Y2
@@ -89,46 +99,86 @@ def sample_inflow(rng, n):
 
 
 def simulate_storage(q_pump, q_in):
-    """Storage levels H[0..T-1] for one inflow realisation and a fixed schedule.
+    """Simulate one inflow realisation under a fixed schedule.
+
+    Returns (H, spill, q_pmp):
+      H     - storage level (m), in [0, STORAGE_MAX] by construction
+      spill - flow over the emergency weir (m3/s); water leaving the system
+      q_pmp - realised pumping (m3/s), never more than the scheduled q_pump
 
     Same balance as the MIP:  A*(H[t] - H[t-1]) = dt*(Q_in - Q_pump - Q_orifice)
-    at t-1. The orifice acts as recourse: full gravity capacity
-    Q <= w*C*d*sqrt(2g(H - H_sea)) whenever H > H_sea, capped so the orifice
-    itself cannot drain the storage below empty.
+    at t-1, plus the two physical limits the MIP enforced with hard bounds and
+    a fixed schedule cannot:
+
+      * an emergency weir at STORAGE_MAX - water above the crest leaves the
+        system as spill, so the level is capped and the excess is accounted
+        for exactly once instead of lingering and being re-charged every hour;
+      * the pump cannot lift water that is not in the basin.
+
+    Because pump and orifice together are capped by the water actually
+    available, H stays in [0, STORAGE_MAX] without any bound penalty.
+
+    The orifice is recourse: full gravity capacity w*C*d*sqrt(2g(H - H_sea))
+    whenever H > H_sea, taking whatever the pump leaves.
     """
     H = np.empty(T)
+    spill = np.zeros(T)
     q_ori = np.empty(T)
-    H[0] = H_start
+    q_pmp = np.empty(T)
+
+    level = H_start
     for t in range(T):
         if t > 0:
-            H[t] = H[t - 1] + dt / A * (q_in[t - 1] - q_pump[t - 1] - q_ori[t - 1])
+            level = H[t - 1] + dt / A * (q_in[t - 1] - q_pmp[t - 1] - q_ori[t - 1])
+
+        # emergency weir: everything above the crest leaves the system
+        if level > STORAGE_MAX:
+            spill[t] = (level - STORAGE_MAX) * A / dt
+            level = STORAGE_MAX
+        H[t] = level
+
+        # the pump can only move water that is actually there
+        q_pmp[t] = min(q_pump[t], A / dt * H[t] + q_in[t])
+
         head = H[t] - H_sea[t]
         if head > 0.0:
-            available = A / dt * H[t] + q_in[t] - q_pump[t]
+            available = A / dt * H[t] + q_in[t] - q_pmp[t]
             q_ori[t] = min(w * C * d * np.sqrt(2.0 * g * head),
                            ORIFICE_MAX,
                            max(available, 0.0))
         else:
             q_ori[t] = 0.0
-    return H
+
+    return H, spill, q_pmp
 
 
 def penalised_cost(q_pump, q_in):
     """Sample cost in flow units (m3/s summed over the horizon).
 
-    Pumped-volume part equals the MIP objective divided by dt; the factor
-    A/dt converts a level violation (m) into the equivalent flow that would
-    have removed it, so PENALTY compares like with like.
+    Three terms, all in the same units, so the coefficients read as ratios:
+
+      * sum(q_pump)             - the MIP objective divided by dt. The
+                                  SCHEDULED rate is charged, not the realised
+                                  one, so committing pump capacity you cannot
+                                  use is not free.
+      * SPILL_COST * spill      - every m3 over the weir charged exactly once,
+                                  whenever it happens. A flood at t=20 costs
+                                  the same as the same flood at t=5.
+      * TERMINAL_COST * ...     - water left above H_start at the end of the
+                                  horizon, charged at what pumping it out
+                                  would have cost. Without this the schedule
+                                  can stop pumping near t=T and push the
+                                  problem past the boundary for free.
     """
-    H = simulate_storage(q_pump, q_in)
-    violation = np.maximum(H - STORAGE_MAX, 0.0) + np.maximum(-H, 0.0)
-    return np.sum(q_pump) + PENALTY * A / dt * np.sum(violation)
+    H, spill, _ = simulate_storage(q_pump, q_in)
+    terminal = max(H[-1] - H_start, 0.0) * A / dt
+    return np.sum(q_pump) + SPILL_COST * np.sum(spill) + TERMINAL_COST * terminal
 
 
 # ------------------------------------------------------------------
 # 3. SPSA
 # ------------------------------------------------------------------
-N_ITER = 60000
+N_ITER = 40000
 SPSA_a = 0.1          # step-size numerator      a_k = a / (k+1+A_stab)^0.602
 SPSA_c = 0.9          # perturbation numerator   c_k = c / (k+1)^0.101
 SPSA_A = 0.1 * N_ITER # stability constant (Spall's ~10% rule)
@@ -145,8 +195,8 @@ def spsa(theta0, batch_size, n_iter=N_ITER, seed=SEED):
     realisations for both evaluations (common random numbers).
 
     The objective is nearly flat in how pumping is spread over the horizon
-    (the storage buffers timing differences) and the exponential inflow has
-    a heavy right tail, so the last iterate keeps rattling around in a flat
+    (the storage buffers timing differences) and the log-normal inflow has a
+    heavy right tail, so the last iterate keeps rattling around in a flat
     valley. The returned schedule is therefore the Polyak-Ruppert average
     of the final AVG_FRAC of the iterates instead of the last iterate.
     """
@@ -184,19 +234,28 @@ def spsa(theta0, batch_size, n_iter=N_ITER, seed=SEED):
 # 4. Monte-Carlo evaluation of a fixed schedule
 # ------------------------------------------------------------------
 def evaluate(q_pump, n_samples=5000, seed=2026):
-    """Out-of-sample estimate of expected cost and violation statistics."""
+    """Out-of-sample estimate of expected cost and flooding statistics.
+
+    The level can no longer violate its bounds (the weir enforces them), so
+    the risk measure is the spill itself: how often the basin overtops and
+    how much water is lost when it does.
+    """
     rng = np.random.default_rng(seed)
     inflows = sample_inflow(rng, n_samples)
     costs = np.empty(n_samples)
-    violated = np.empty(n_samples, dtype=bool)
+    spilled = np.empty(n_samples)
+    end_level = np.empty(n_samples)
     for i, q_in in enumerate(inflows):
-        H = simulate_storage(q_pump, q_in)
+        H, spill, _ = simulate_storage(q_pump, q_in)
         costs[i] = penalised_cost(q_pump, q_in)
-        violated[i] = np.any(H > STORAGE_MAX) or np.any(H < 0.0)
+        spilled[i] = spill.sum() * dt        # m3 over the whole horizon
+        end_level[i] = H[-1]
     return {
         'pumped volume (m3)': np.sum(q_pump) * dt,
-        'E[penalised cost]': costs.mean(),
-        'P(bound violated)': violated.mean(),
+        'E[total cost]': costs.mean(),
+        'P(spill)': (spilled > 0).mean(),
+        'E[spill] (m3)': spilled.mean(),
+        'E[end level] (m)': end_level.mean(),
     }
 
 
