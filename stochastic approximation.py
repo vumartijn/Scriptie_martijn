@@ -47,7 +47,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-SEED = 43
+SEED = 42
 
 # ------------------------------------------------------------------
 # 1. Data and physical constants (identical to example_pyomo.py)
@@ -178,11 +178,11 @@ def penalised_cost(q_pump, q_in):
 # ------------------------------------------------------------------
 # 3. SPSA
 # ------------------------------------------------------------------
-N_ITER = 40000
-SPSA_a = 0.1          # step-size numerator      a_k = a / (k+1+A_stab)^0.602
+N_ITER = 20000
+SPSA_a = 0.5          # step-size numerator      a_k = a / (k+1+A_stab)^0.602
 SPSA_c = 0.9          # perturbation numerator   c_k = c / (k+1)^0.101
 SPSA_A = 0.1 * N_ITER # stability constant (Spall's ~10% rule)
-ALPHA, GAMMA = 0.602, 0.101
+ALPHA, GAMMA = 0.85, 0.2
 AVG_FRAC = 0.5        # Polyak-Ruppert: average the iterates of the last 50%
 
 
