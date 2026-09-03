@@ -179,8 +179,8 @@ def penalised_cost(q_pump, q_in):
 # 3. SPSA
 # ------------------------------------------------------------------
 N_ITER = 20000
-SPSA_a = 0.5          # step-size numerator      a_k = a / (k+1+A_stab)^0.602
-SPSA_c = 0.9          # perturbation numerator   c_k = c / (k+1)^0.101
+SPSA_a = 0.5
+SPSA_c = 0.9
 SPSA_A = 0.1 * N_ITER # stability constant (Spall's ~10% rule)
 ALPHA, GAMMA = 0.85, 0.2
 AVG_FRAC = 0.5        # Polyak-Ruppert: average the iterates of the last 50%
